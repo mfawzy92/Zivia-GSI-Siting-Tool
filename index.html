@@ -546,10 +546,33 @@ fakeSites.forEach(s=>{
 const c=L.circleMarker([s.lat,s.lng],{radius:s.tier===1?10:s.tier===2?8:6,fillColor:tierColors[s.tier],color:"#fff",weight:2,fillOpacity:0.9}).addTo(map2);
 c.bindPopup(`<div style="font-size:12px;min-width:160px"><strong>${s.name}</strong><br><span style="color:${tierColors[s.tier]};font-weight:700">Score: ${s.score.toFixed(2)}</span> · ${s.tier===1?"Tier 1":s.tier===2?"Tier 2":"Tier 3"}<br>Type: ${s.type}<br>GSI: ${s.gsi} · ${s.area} ft²</div>`);
 });
-for(let i=0;i<80;i++){
-const lat=21.262+Math.random()*0.08,lng=-157.885+Math.random()*0.075;
+// Tighter land-only boundary for random point placement (follows Honolulu coastline)
+const landPoly=[
+[21.340,-157.870],[21.345,-157.855],[21.348,-157.840],[21.350,-157.825],
+[21.348,-157.810],[21.343,-157.795],[21.335,-157.782],[21.325,-157.772],
+[21.315,-157.768],[21.305,-157.770],[21.298,-157.778],[21.292,-157.790],
+[21.285,-157.800],[21.280,-157.810],[21.278,-157.820],[21.282,-157.828],
+[21.289,-157.832],[21.292,-157.840],[21.290,-157.848],[21.287,-157.852],
+[21.284,-157.856],[21.288,-157.862],[21.295,-157.865],[21.300,-157.862],
+[21.305,-157.858],[21.308,-157.855],[21.310,-157.860],[21.313,-157.865],
+[21.318,-157.868],[21.325,-157.870],[21.332,-157.872],[21.340,-157.870]
+];
+function ptInPoly(lat,lng,poly){
+let inside=false;
+for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+const yi=poly[i][0],xi=poly[i][1],yj=poly[j][0],xj=poly[j][1];
+if(((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/(yj-yi)+xi))inside=!inside;
+}
+return inside;
+}
+let placed=0,attempts=0;
+while(placed<80&&attempts<800){
+attempts++;
+const lat=21.278+Math.random()*0.070,lng=-157.872+Math.random()*0.105;
+if(!ptInPoly(lat,lng,landPoly))continue;
 const tier=Math.random()<0.35?1:Math.random()<0.65?2:3;
 L.circleMarker([lat,lng],{radius:tier===1?6:tier===2?5:4,fillColor:tierColors[tier],color:"#fff",weight:1.5,fillOpacity:0.5}).addTo(map2);
+placed++;
 }
 setTimeout(()=>map2.invalidateSize(),100);
 }

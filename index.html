@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0F172A;--bg2:#1E293B;--bg3:#334155;--surf:#FFFFFF;--surfD:#F8FAFC;--surfD2:#F1F5F9;--pri:#3B82F6;--priH:#2563EB;--priL:#DBEAFE;--txt:#1E293B;--txt2:#475569;--txt3:#94A3B8;--grn:#10B981;--amb:#F59E0B;--red:#EF4444;--vio:#8B5CF6;--cyan:#06B6D4;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,0.08)}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--surfD);color:var(--txt);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.demo-banner{background:linear-gradient(90deg,#F59E0B,#F97316);color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:600;letter-spacing:0.3px;flex-shrink:0}
+.app{display:flex;flex:1;overflow:hidden}
+.sidebar{width:260px;background:var(--bg);color:#fff;display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-header{padding:20px;border-bottom:1px solid var(--bg3)}
+.sidebar-header h1{font-size:15px;font-weight:700;color:#fff}
+.sidebar-header p{font-size:11px;color:var(--txt3);margin-top:4px}
+.steps-nav{flex:1;padding:16px}
+.step-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;margin-bottom:4px;cursor:pointer;transition:all 0.2s}
+.step-item:hover{background:var(--bg2)}
+.step-item.active{background:var(--pri);color:#fff}
+.step-item.completed{background:var(--bg2)}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg3);flex-shrink:0;transition:all 0.2s}
+.step-item.active .step-num{background:rgba(255,255,255,0.25)}
+.step-item.completed .step-num{background:var(--grn)}
+.step-label{font-size:13px;font-weight:500}
+.step-sub{font-size:10px;color:var(--txt3);margin-top:1px}
+.step-item.active .step-sub{color:rgba(255,255,255,0.7)}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.main-header{padding:16px 24px;background:#fff;border-bottom:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.main-header h2{font-size:17px;font-weight:700}
+.main-header p{font-size:12px;color:var(--txt2);margin-top:2px}
+.btn{padding:8px 20px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px}
+.btn-pri{background:var(--pri);color:#fff}.btn-pri:hover{background:var(--priH)}
+.btn-sec{background:var(--surfD2);color:var(--txt2)}.btn-sec:hover{background:#E2E8F0}
+.btn-grn{background:var(--grn);color:#fff}.btn-grn:hover{background:#059669}
+.btn-sm{padding:6px 14px;font-size:12px}
+.content{flex:1;overflow-y:auto;position:relative}
+.panel{display:none;height:100%}
+.panel.active{display:flex;flex-direction:column}
+#map{flex:1;min-height:0}
+.map-overlay{position:absolute;top:12px;right:12px;z-index:999;background:#fff;border-radius:10px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,0.12);width:220px;max-height:calc(100% - 100px);overflow-y:auto}
+.map-overlay h3{font-size:12px;font-weight:700;color:var(--txt);margin-bottom:8px}
+.data-layer{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:11px}
+.data-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.data-dot.avail{background:var(--grn)}
+.data-dot.partial{background:var(--amb)}
+.data-dot.unavail{background:#CBD5E1}
+.criteria-content{padding:20px 24px;overflow-y:auto;flex:1}
+.scenario-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.scenario-bar label{font-size:12px;font-weight:600;color:var(--txt);margin-right:4px}
+.scenario-chip{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:2px solid #E2E8F0;background:#fff;color:var(--txt2);transition:all 0.15s}
+.scenario-chip:hover{border-color:var(--pri);color:var(--pri)}
+.scenario-chip.active{border-color:var(--pri);background:var(--priL);color:var(--pri)}
+.weight-warn{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:8px 12px;font-size:11px;color:#991B1B;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.weight-ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:8px 12px;font-size:11px;color:#166534;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.dim-card{background:#fff;border:1px solid #E2E8F0;border-radius:var(--radius);margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow)}
+.dim-header{padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.dim-header:hover{background:var(--surfD)}
+.dim-left{display:flex;align-items:center;gap:10px}
+.dim-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.dim-title{font-size:14px;font-weight:600}
+.dim-desc{font-size:11px;color:var(--txt2);margin-top:1px}
+.dim-right{display:flex;align-items:center;gap:10px}
+.dim-toggle{position:relative;width:40px;height:22px;border-radius:11px;background:#CBD5E1;cursor:pointer;transition:background 0.2s;flex-shrink:0}
+.dim-toggle.on{background:var(--pri)}
+.dim-toggle::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+.dim-toggle.on::after{transform:translateX(18px)}
+.dim-body{padding:0 16px 14px}
+.dim-body.collapsed{display:none}
+.crit-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #F1F5F9}
+.crit-check{width:16px;height:16px;border-radius:4px;border:2px solid #CBD5E1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;flex-shrink:0;transition:all 0.15s}
+.crit-check.on{background:var(--pri);border-color:var(--pri)}
+.crit-info{flex:1;min-width:0}
+.crit-name{font-size:12px;font-weight:600;color:var(--txt)}
+.crit-detail{font-size:10px;color:var(--txt3);margin-top:1px}
+.crit-slider-wrap{width:140px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.crit-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:#E2E8F0;outline:none;cursor:pointer}
+.crit-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--pri);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.crit-val{font-size:11px;font-weight:600;color:var(--pri);width:28px;text-align:right}
+.dim-weight{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--surfD);border-top:1px solid #E2E8F0}
+.dim-weight label{font-size:11px;font-weight:600;color:var(--txt2);white-space:nowrap}
+.dim-weight input{flex:1}
+.dim-weight-val{font-size:13px;font-weight:700;color:var(--pri);width:36px;text-align:right}
+.run-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;padding:40px}
+.run-card{background:#fff;border-radius:16px;padding:40px 48px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.06);max-width:520px;width:100%}
+.progress-ring{width:120px;height:120px;margin:0 auto 20px}
+.progress-ring circle{fill:none;stroke-width:6;stroke-linecap:round}
+.progress-bg{stroke:#E2E8F0}
+.progress-fg{stroke:var(--pri);transition:stroke-dashoffset 0.3s}
+.progress-text{font-size:24px;font-weight:700;fill:var(--pri)}
+.run-status{font-size:14px;color:var(--txt2);margin-top:8px}
+.run-steps{text-align:left;margin-top:20px}
+.run-step{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;color:var(--txt3)}
+.run-step.done{color:var(--grn)}
+.run-step.active{color:var(--pri);font-weight:600}
+.results-wrap{padding:20px 24px;overflow-y:auto;flex:1}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:var(--radius);padding:16px;border:1px solid #E2E8F0;box-shadow:var(--shadow)}
+.stat-val{font-size:24px;font-weight:700}
+.stat-label{font-size:11px;color:var(--txt2);margin-top:2px}
+.stat-change{font-size:11px;margin-top:4px;font-weight:600}
+.results-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.res-card{background:#fff;border-radius:var(--radius);border:1px solid #E2E8F0;box-shadow:var(--shadow);overflow:hidden}
+.res-card-header{padding:12px 16px;font-size:13px;font-weight:600;border-bottom:1px solid #E2E8F0}
+.res-card-body{padding:16px}
+#resultsMap{height:320px;border-radius:0}
+.tier-bar{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tier-label{width:50px;font-size:11px;font-weight:600;text-align:right}
+.tier-track{flex:1;height:24px;background:var(--surfD2);border-radius:6px;overflow:hidden;position:relative}
+.tier-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:600;color:#fff;transition:width 0.8s ease}
+.tier-count{font-size:11px;color:var(--txt2);width:30px}
+.site-table{width:100%;border-collapse:collapse;font-size:12px}
+.site-table th{text-align:left;padding:8px 10px;background:var(--surfD);color:var(--txt2);font-weight:600;font-size:11px;border-bottom:1px solid #E2E8F0;position:sticky;top:0}
+.site-table td{padding:8px 10px;border-bottom:1px solid #F1F5F9}
+.site-table tr:hover td{background:#F8FAFC}
+.site-table tr{cursor:pointer}
+.score-bar{width:60px;height:6px;background:#E2E8F0;border-radius:3px;display:inline-block;position:relative;vertical-align:middle;margin-right:6px}
+.score-fill{position:absolute;top:0;left:0;height:100%;border-radius:3px}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+.badge-t1{background:#DCFCE7;color:#166534}
+.badge-t2{background:#FEF9C3;color:#854D0E}
+.badge-t3{background:#FEE2E2;color:#991B1B}
+.gsi-tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600;margin:1px}
+.legend{display:flex;gap:12px;margin-top:10px;justify-content:center}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2)}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+.note-box{background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:11px;color:#92400E;display:flex;align-items:flex-start;gap:8px}
+.chart-bar-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.chart-bar-label{width:80px;font-size:11px;color:var(--txt2);text-align:right;flex-shrink:0}
+.chart-bar-track{flex:1;height:20px;background:var(--surfD2);border-radius:4px;overflow:hidden}
+.chart-bar-fill{height:100%;border-radius:4px;transition:width 1s ease}
+.chart-bar-val{width:32px;font-size:11px;font-weight:600;color:var(--txt)}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:#fff;border-radius:16px;padding:28px;max-width:560px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-height:85vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:4px}
+.modal-close{position:absolute;top:16px;right:16px;border:none;background:none;font-size:20px;cursor:pointer;color:var(--txt3)}
+.radar-container{display:flex;justify-content:center;margin:16px 0}
+.dim-score-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F1F5F9}
+.dim-score-label{width:120px;font-size:12px;font-weight:500}
+.dim-score-bar{flex:1;height:8px;background:#E2E8F0;border-radius:4px;overflow:hidden}
+.dim-score-fill{height:100%;border-radius:4px;transition:width 0.6s ease}
+.dim-score-val{width:36px;text-align:right;font-size:12px;font-weight:700}
+.chevron{font-size:14px;color:var(--txt3);transition:transform 0.2s;flex-shrink:0}
+.chevron.open{transform:rotate(180deg)}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.anim-in{animation:fadeInUp 0.4s ease forwards}
+</style>
+</head>
+<body>
+<div class="demo-banner">⚠️ DEMONSTRATION ONLY — This tool does not perform real calculations or display actual results. For presentation purposes only.</div>
+<div class="app">
+<div class="sidebar">
+<div class="sidebar-header">
+<h1>🌿 Zivia GSI Siting Tool</h1>
+<p>Multi-Criteria Decision Analysis</p>
+</div>
+<div class="steps-nav" id="stepsNav"></div>
+<div style="padding:16px;border-top:1px solid var(--bg3)">
+<div style="font-size:10px;color:var(--txt3)">Demo Version 0.1</div>
+<div style="font-size:10px;color:var(--txt3);margin-top:2px">HDR × Colorado State University</div>
+</div>
+</div>
+<div class="main">
+<div class="main-header" id="mainHeader"></div>
+<div class="content" id="content">
+<div class="panel" id="panel1">
+<div id="map" style="flex:1;min-height:0;position:relative">
+<div class="map-overlay" id="dataOverlay"></div>
+</div>
+<div style="padding:12px 20px;background:#fff;border-top:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center">
+<div>
+<div style="font-size:12px;font-weight:600;color:var(--txt)">📍 Honolulu, HI — Study Area Loaded</div>
+<div style="font-size:11px;color:var(--txt3)">Area: ~177 km² · Population: ~350,000 · Urban core boundary</div>
+</div>
+<div style="display:flex;gap:8px">
+<button class="btn btn-sec btn-sm" onclick="alert('In the full tool, this would let you upload a custom city boundary shapefile or GeoJSON.')">Upload Boundary</button>
+<button class="btn btn-pri btn-sm" onclick="goStep(2)">Continue →</button>
+</div>
+</div>
+</div>
+<div class="panel" id="panel2">
+<div class="criteria-content" id="criteriaContent"></div>
+<div style="padding:12px 20px;background:#fff;border-top:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center">
+<button class="btn btn-sec btn-sm" onclick="goStep(1)">← Back</button>
+<div style="font-size:11px;color:var(--txt3)" id="activeCriteriaCount"></div>
+<button class="btn btn-pri btn-sm" onclick="goStep(3)">Run Analysis →</button>
+</div>
+</div>
+<div class="panel" id="panel3">
+<div class="run-panel"><div class="run-card" id="runCard"></div></div>
+</div>
+<div class="panel" id="panel4">
+<div class="results-wrap" id="resultsWrap"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="modal-overlay" id="modalOverlay" onclick="closeSiteModal(event)">
+<div class="modal" id="modalContent" onclick="event.stopPropagation()"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const steps=[
+{id:1,label:"Study Area",sub:"Define city boundary",icon:"🗺️"},
+{id:2,label:"Configure Criteria",sub:"Set weights & toggles",icon:"⚙️"},
+{id:3,label:"Run Analysis",sub:"Process & compute",icon:"🚀"},
+{id:4,label:"View Results",sub:"Ranked sites & map",icon:"📊"}
+];
+
+const dims=[
+{id:"hydro",name:"Hydrological Effectiveness",icon:"💧",color:"#06B6D4",desc:"How well can the site manage stormwater?",
+criteria:[
+{id:"soil",name:"Soil Infiltration Capacity",detail:"SSURGO HSG & Ksat ratings",w:25},
+{id:"slope",name:"Slope Suitability",detail:"DEM-derived terrain slope",w:15},
+{id:"cda",name:"Contributing Drainage Area",detail:"Impervious area draining to site",w:25},
+{id:"flood",name:"Flood/CSO Proximity",detail:"Distance to flooding hotspots & CSOs",w:20},
+{id:"gw",name:"Groundwater Separation",detail:"Depth to seasonal high water table",w:15}
+]},
+{id:"feas",name:"Implementation Feasibility",icon:"🏗️",color:"#8B5CF6",desc:"How practical is it to build GSI here?",
+criteria:[
+{id:"own",name:"Land Ownership",detail:"Public vs. private ownership status",w:30},
+{id:"size",name:"Parcel Size",detail:"Available area after setbacks",w:20},
+{id:"use",name:"Current Land Use",detail:"Vacancy or underutilization level",w:25},
+{id:"access",name:"Site Accessibility",detail:"Road frontage & equipment access",w:15},
+{id:"contam",name:"Contamination Status",detail:"Brownfield / environmental risk",w:10}
+]},
+{id:"cobenefit",name:"Environmental Co-Benefits",icon:"🌳",color:"#10B981",desc:"What additional environmental value does this site provide?",
+criteria:[
+{id:"heat",name:"Urban Heat Island Intensity",detail:"Landsat-derived surface temperature",w:25},
+{id:"canopy",name:"Tree Canopy Deficit",detail:"Existing urban tree canopy coverage",w:25},
+{id:"green",name:"Green Space Deficit",detail:"Distance to nearest park / green space",w:25},
+{id:"water",name:"Receiving Water Proximity",detail:"Distance to impaired streams",w:25}
+]},
+{id:"equity",name:"Social Equity & Community",icon:"🤝",color:"#F59E0B",desc:"Does this site serve disadvantaged communities?",
+criteria:[
+{id:"ej",name:"Environmental Justice Index",detail:"EPA EJScreen / CDC SVI composite score",w:30},
+{id:"pop",name:"Population Density",detail:"Residents benefited per area",w:20},
+{id:"access_eq",name:"Green Space Access Equity",detail:"Existing access disparity",w:25},
+{id:"health",name:"Public Health Burden",detail:"Asthma & heat illness rates",w:25}
+]}
+];
+
+const scenarios={
+balanced:{label:"⚖️ Balanced",dimW:{hydro:25,feas:25,cobenefit:25,equity:25}},
+flood:{label:"🌊 Flood Priority",dimW:{hydro:45,feas:25,cobenefit:15,equity:15}},
+equity_first:{label:"🤝 Equity Priority",dimW:{hydro:20,feas:15,cobenefit:25,equity:40}},
+cost:{label:"💰 Cost-Efficiency",dimW:{hydro:20,feas:45,cobenefit:15,equity:20}}
+};
+
+const dataLayers=[
+{name:"Parcel Boundaries",status:"avail"},{name:"Land Use Codes",status:"avail"},
+{name:"Ownership Records",status:"avail"},{name:"DEM (1m Lidar)",status:"avail"},
+{name:"SSURGO Soils",status:"avail"},{name:"NLCD Impervious",status:"avail"},
+{name:"Building Footprints",status:"avail"},{name:"Storm Sewer Network",status:"avail"},
+{name:"FEMA Flood Zones",status:"avail"},{name:"EPA Brownfields",status:"avail"},
+{name:"Census / ACS Data",status:"avail"},{name:"EJScreen Indices",status:"avail"},
+{name:"Tree Canopy",status:"partial"},{name:"Flood Complaints (311)",status:"partial"},
+{name:"CSO Discharge Points",status:"partial"},{name:"Surface Temperature",status:"partial"},
+{name:"Groundwater Wells",status:"unavail"},{name:"Public Health (PLACES)",status:"unavail"},
+];
+
+let curStep=1,dimState={},curScenario="balanced",map1=null,map2=null;
+dims.forEach(d=>{dimState[d.id]={on:true,open:true,dimW:25,criteria:{}};d.criteria.forEach(c=>{dimState[d.id].criteria[c.id]={on:true,w:c.w}})});
+
+function renderNav(){
+const nav=document.getElementById("stepsNav");
+nav.innerHTML=steps.map(s=>{
+let cls="step-item";if(s.id===curStep)cls+=" active";else if(s.id<curStep)cls+=" completed";
+return`<div class="${cls}" onclick="goStep(${s.id})"><div class="step-num">${s.id<curStep?"✓":s.id}</div><div><div class="step-label">${s.icon} ${s.label}</div><div class="step-sub">${s.sub}</div></div></div>`}).join("");
+}
+
+function renderHeader(){
+const s=steps[curStep-1];
+document.getElementById("mainHeader").innerHTML=`<div><h2>${s.icon} ${s.label}</h2><p>${["Define your city boundary and review available data layers","Toggle criteria, adjust weights, and select a scenario preset","Processing spatial data and computing MCDA scores","Explore ranked candidate sites, maps, and analysis"][s.id-1]}</p></div>`;
+}
+
+function goStep(n){
+if(n===4&&curStep<3)return;curStep=n;renderNav();renderHeader();
+document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+document.getElementById("panel"+n).classList.add("active");
+if(n===1){initMap();renderDataOverlay()}if(n===2)renderCriteria();if(n===3)runAnalysis();if(n===4)renderResults();
+}
+
+const honBoundary=[[21.253,-157.875],[21.262,-157.887],[21.272,-157.893],[21.285,-157.890],[21.295,-157.882],[21.308,-157.870],[21.318,-157.862],[21.327,-157.855],[21.338,-157.843],[21.345,-157.830],[21.350,-157.815],[21.352,-157.800],[21.348,-157.785],[21.340,-157.772],[21.332,-157.765],[21.320,-157.760],[21.308,-157.762],[21.296,-157.770],[21.285,-157.780],[21.275,-157.792],[21.265,-157.808],[21.258,-157.822],[21.252,-157.840],[21.250,-157.858],[21.253,-157.875]];
+
+function renderDataOverlay(){
+const el=document.getElementById("dataOverlay");
+const counts={avail:dataLayers.filter(d=>d.status==="avail").length,partial:dataLayers.filter(d=>d.status==="partial").length,unavail:dataLayers.filter(d=>d.status==="unavail").length};
+el.innerHTML=`<h3>📂 Data Layers (Honolulu)</h3>
+<div style="display:flex;gap:8px;margin-bottom:8px;font-size:10px">
+<span style="color:var(--grn)">● ${counts.avail} Available</span>
+<span style="color:var(--amb)">● ${counts.partial} Partial</span>
+<span style="color:#94A3B8">● ${counts.unavail} Missing</span>
+</div>
+${dataLayers.map(d=>`<div class="data-layer"><div class="data-dot ${d.status}"></div><span style="color:${d.status==='unavail'?'#94A3B8':'var(--txt)'}">${d.name}</span></div>`).join("")}
+<div style="margin-top:10px;padding-top:8px;border-top:1px solid #E2E8F0;font-size:10px;color:var(--txt3)">Missing layers will be excluded from scoring. Partial layers use interpolated estimates.</div>`;
+}
+
+function initMap(){
+if(map1)return;
+setTimeout(()=>{
+map1=L.map("map",{zoomControl:true}).setView([21.305,-157.830],13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map1);
+L.polygon(honBoundary,{color:"#3B82F6",weight:3,fillColor:"#3B82F6",fillOpacity:0.08,dashArray:"8 4"}).addTo(map1);
+map1.invalidateSize();
+},100);
+}
+
+function applyScenario(key){
+curScenario=key;
+const sc=scenarios[key];
+Object.keys(sc.dimW).forEach(d=>{dimState[d].dimW=sc.dimW[d]});
+renderCriteria();
+}
+
+function renderCriteria(){
+const cont=document.getElementById("criteriaContent");
+const totalW=dims.reduce((a,d)=>a+(dimState[d.id].on?dimState[d.id].dimW:0),0);
+const wOk=totalW===100;
+
+let html=`<div class="note-box">⚠️ <span><strong>Demo Mode:</strong> Configure your MCDA criteria below. In the full tool, these weights directly control the scoring engine. Toggle dimensions/criteria on or off and adjust weights to reflect local priorities.</span></div>`;
+
+html+=`<div class="scenario-bar"><label>Quick Presets:</label>${Object.entries(scenarios).map(([k,v])=>`<div class="scenario-chip ${curScenario===k?'active':''}" onclick="applyScenario('${k}')">${v.label}</div>`).join("")}</div>`;
+
+if(!wOk){
+html+=`<div class="weight-warn">⚠️ Dimension weights sum to <strong>${totalW}%</strong> — they should total 100% for proper normalization. Adjust the sliders below.</div>`;
+}else{
+html+=`<div class="weight-ok">✅ Dimension weights sum to <strong>100%</strong> — properly normalized.</div>`;
+}
+
+dims.forEach(d=>{
+const ds=dimState[d.id];
+html+=`<div class="dim-card" style="${ds.on?'':`opacity:0.55`}">
+<div class="dim-header" onclick="toggleDimOpen('${d.id}')">
+<div class="dim-left">
+<div class="dim-icon" style="background:${d.color}18;color:${d.color}">${d.icon}</div>
+<div><div class="dim-title">${d.name}</div><div class="dim-desc">${d.desc}</div></div>
+</div>
+<div class="dim-right">
+<span class="chevron ${ds.open?'open':''}">▾</span>
+<div class="dim-toggle ${ds.on?'on':''}" onclick="event.stopPropagation();toggleDim('${d.id}')"></div>
+</div>
+</div>
+<div class="dim-weight" style="${ds.on?'':'opacity:0.4'}">
+<label>Dimension Weight:</label>
+<input type="range" class="crit-slider" min="0" max="100" value="${ds.dimW}" oninput="setDimW('${d.id}',this.value)" ${ds.on?'':'disabled'} style="accent-color:${d.color}">
+<div class="dim-weight-val" style="color:${d.color}">${ds.dimW}%</div>
+</div>
+<div class="dim-body ${ds.open?'':'collapsed'}">`;
+d.criteria.forEach(c=>{
+const cs=ds.criteria[c.id];
+const disabled=!ds.on||!cs.on;
+html+=`<div class="crit-row" style="opacity:${disabled?0.35:1}">
+<div class="crit-check ${cs.on?'on':''}" onclick="toggleCrit('${d.id}','${c.id}')" style="${ds.on?'':'pointer-events:none'}">✓</div>
+<div class="crit-info"><div class="crit-name">${c.name}</div><div class="crit-detail">${c.detail}</div></div>
+<div class="crit-slider-wrap">
+<input type="range" class="crit-slider" min="0" max="100" value="${cs.w}" oninput="setCritW('${d.id}','${c.id}',this.value)" ${disabled?'disabled':''}>
+<div class="crit-val">${cs.w}%</div>
+</div></div>`;
+});
+html+=`</div></div>`;
+});
+cont.innerHTML=html;
+updateCriteriaCount();
+}
+
+function toggleDim(id){dimState[id].on=!dimState[id].on;curScenario=null;renderCriteria()}
+function toggleDimOpen(id){dimState[id].open=!dimState[id].open;renderCriteria()}
+function toggleCrit(did,cid){dimState[did].criteria[cid].on=!dimState[did].criteria[cid].on;renderCriteria()}
+function setDimW(id,v){dimState[id].dimW=+v;curScenario=null;renderCriteria()}
+function setCritW(did,cid,v){dimState[did].criteria[cid].w=+v;renderCriteria()}
+function updateCriteriaCount(){
+let active=0,total=0;dims.forEach(d=>{d.criteria.forEach(c=>{total++;if(dimState[d.id].on&&dimState[d.id].criteria[c.id].on)active++})});
+document.getElementById("activeCriteriaCount").textContent=`${active} of ${total} criteria active`;
+}
+
+const runSteps=["Loading parcel data & boundaries...","Querying land use and ownership records...","Processing DEM & computing slope raster...","Analyzing SSURGO soil infiltration rates...","Delineating urban micro-catchments...","Computing contributing drainage areas...","Screening brownfield & contamination sites...","Applying exclusionary constraints...","Computing MCDA scores (WLC method)...","Running sensitivity analysis (n=1,000)...","Classifying sites into priority tiers...","Matching optimal GSI practices to sites...","Generating output maps & reports..."];
+
+function runAnalysis(){
+const card=document.getElementById("runCard");let step=0,pct=0;
+function render(){
+const circ=2*Math.PI*52,off=circ-(pct/100)*circ;
+card.innerHTML=`<svg class="progress-ring" viewBox="0 0 120 120"><circle class="progress-bg" cx="60" cy="60" r="52"/><circle class="progress-fg" cx="60" cy="60" r="52" stroke-dasharray="${circ}" stroke-dashoffset="${off}" transform="rotate(-90 60 60)"/><text class="progress-text" x="60" y="65" text-anchor="middle">${pct}%</text></svg>
+<div style="font-size:16px;font-weight:700;color:var(--txt)">Processing Analysis</div>
+<div class="run-status">Analyzing Honolulu study area with ${getActiveCritCount()} active criteria...</div>
+<div class="run-steps">${runSteps.map((s,i)=>{let cls="run-step";if(i<step)cls+=" done";else if(i===step)cls+=" active";return`<div class="${cls}">${i<step?"✅":i===step?"⏳":"⬜"} ${s}</div>`}).join("")}</div>`;
+}
+render();
+const iv=setInterval(()=>{step++;pct=Math.min(100,Math.round((step/runSteps.length)*100));render();
+if(step>=runSteps.length){clearInterval(iv);setTimeout(()=>{
+card.innerHTML=`<div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-size:18px;font-weight:700;color:var(--grn)">Analysis Complete</div><div style="font-size:13px;color:var(--txt2);margin:8px 0 20px">Identified <strong>247</strong> candidate sites across <strong>34</strong> micro-catchments in Honolulu</div><button class="btn btn-grn" onclick="goStep(4)">View Results →</button>`;
+},400)}},500);
+}
+function getActiveCritCount(){let c=0;dims.forEach(d=>{d.criteria.forEach(cr=>{if(dimState[d.id].on&&dimState[d.id].criteria[cr.id].on)c++})});return c}
+
+const fakeSites=[
+{id:1,name:"Ala Moana Park East",lat:21.2890,lng:-157.8490,score:0.92,tier:1,gsi:"Rain Garden",type:"Public Park",area:"3,200",ds:[0.95,0.88,0.91,0.93],detail:"Large public green space adjacent to Ala Moana Center. Excellent HSG-A soils with high infiltration. Large impervious CDA from surrounding commercial district."},
+{id:2,name:"Kaka'ako Vacant Lot #12",lat:21.2970,lng:-157.8610,score:0.89,tier:1,gsi:"Bioretention",type:"Vacant – City Owned",area:"5,800",ds:[0.85,0.95,0.87,0.90],detail:"City-owned vacant parcel in redevelopment zone. Flat terrain, HSG-B soils. High equity score due to adjacent affordable housing."},
+{id:3,name:"Punchbowl School Grounds",lat:21.3120,lng:-157.8420,score:0.87,tier:1,gsi:"Permeable Pavement",type:"School",area:"4,100",ds:[0.80,0.92,0.85,0.92],detail:"Public school with large underutilized paved area. Existing parking lot is ideal for permeable pavement retrofit."},
+{id:4,name:"Iwilei Industrial Parcel",lat:21.3190,lng:-157.8650,score:0.84,tier:1,gsi:"Detention + Park",type:"Vacant Industrial",area:"8,400",ds:[0.72,0.90,0.88,0.95],detail:"Former warehouse site with rubble fill. Compacted HSG-D soils make infiltration infeasible, but ideal for underground detention with pocket park above. Highest equity score in dataset."},
+{id:5,name:"King St Median Strip",lat:21.3050,lng:-157.8550,score:0.82,tier:1,gsi:"Bioswale",type:"Road ROW",area:"1,800",ds:[0.88,0.78,0.82,0.80],detail:"Wide road median along a major corridor. Linear geometry ideal for bioswale treatment train intercepting road runoff."},
+{id:6,name:"Chinatown Community Lot",lat:21.3130,lng:-157.8620,score:0.79,tier:2,gsi:"Rain Garden",type:"Land Bank",area:"2,400",ds:[0.75,0.82,0.80,0.88],detail:"Municipal land bank parcel in historic Chinatown. Moderate soils, high community benefit potential."},
+{id:7,name:"Mō'ili'ili Church Grounds",lat:21.2880,lng:-157.8270,score:0.76,tier:2,gsi:"Bioretention",type:"Institutional",area:"3,600",ds:[0.82,0.70,0.78,0.75],detail:"Church property with underutilized lawn area. Good soils but private ownership reduces feasibility score."},
+{id:8,name:"Kapahulu Parking Lot",lat:21.2780,lng:-157.8180,score:0.74,tier:2,gsi:"Permeable Pavement",type:"Commercial",area:"6,200",ds:[0.78,0.72,0.70,0.76],detail:"Commercial parking lot near Waikīkī. Large impervious area contributes significant runoff to Ala Wai Canal watershed."},
+{id:9,name:"Nu'uanu Stream Corridor",lat:21.3280,lng:-157.8530,score:0.71,tier:2,gsi:"Constructed Wetland",type:"Utility Corridor",area:"12,500",ds:[0.90,0.60,0.75,0.68],detail:"Riparian corridor along Nu'uanu Stream. Excellent hydrological position but complex permitting requirements."},
+{id:10,name:"Liliha Housing Complex",lat:21.3240,lng:-157.8480,score:0.68,tier:2,gsi:"Rain Garden",type:"Public Housing",area:"2,100",ds:[0.65,0.72,0.62,0.92],detail:"Public housing grounds with green space deficit. Moderate physical suitability but highest-need community."},
+{id:11,name:"Beretania Vacant Parcel",lat:21.3080,lng:-157.8400,score:0.64,tier:3,gsi:"Infiltration Trench",type:"Tax-Delinquent",area:"1,400",ds:[0.70,0.58,0.65,0.63],detail:"Small tax-delinquent parcel. Good soils but limited size and access constraints reduce overall score."},
+{id:12,name:"Makiki Hillside Lot",lat:21.3050,lng:-157.8320,score:0.58,tier:3,gsi:"Bioswale",type:"Vacant Residential",area:"2,800",ds:[0.50,0.65,0.60,0.58],detail:"Hillside lot with 8–12% slopes. Challenging terrain limits most GSI types; contour bioswales feasible with terracing."}
+];
+const tierColors={1:"#10B981",2:"#F59E0B",3:"#EF4444"};
+const dimNames=["Hydrological","Feasibility","Co-Benefits","Equity"];
+const dimColors=["#06B6D4","#8B5CF6","#10B981","#F59E0B"];
+
+function openSiteModal(idx){
+const s=fakeSites[idx];
+const m=document.getElementById("modalContent");
+m.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start">
+<div><h3>${s.name}</h3><div style="font-size:12px;color:var(--txt2);margin-top:2px">${s.type} · ${s.area} sq ft · Recommended: <strong>${s.gsi}</strong></div></div>
+<div style="text-align:right"><div style="font-size:28px;font-weight:800;color:${tierColors[s.tier]}">${s.score.toFixed(2)}</div><span class="badge badge-t${s.tier}">${s.tier===1?"Tier 1 — High":s.tier===2?"Tier 2 — Moderate":"Tier 3 — Lower"}</span></div>
+</div>
+<div style="margin:16px 0;font-size:12px;color:var(--txt2);line-height:1.6;padding:12px;background:var(--surfD);border-radius:8px">${s.detail}</div>
+<div style="font-size:13px;font-weight:600;margin-bottom:10px">Dimension Score Breakdown</div>
+${s.ds.map((v,i)=>`<div class="dim-score-row">
+<div class="dim-score-label" style="color:${dimColors[i]}">${["💧 Hydrological","🏗️ Feasibility","🌳 Co-Benefits","🤝 Equity"][i]}</div>
+<div class="dim-score-bar"><div class="dim-score-fill" style="width:${v*100}%;background:${dimColors[i]}"></div></div>
+<div class="dim-score-val" style="color:${dimColors[i]}">${v.toFixed(2)}</div>
+</div>`).join("")}
+<div style="margin-top:16px">
+<svg viewBox="0 0 240 200" style="width:100%;max-width:300px;display:block;margin:0 auto">
+${renderRadar(s.ds)}
+</svg>
+</div>
+<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+<button class="btn btn-sec btn-sm" onclick="closeSiteModal()">Close</button>
+<button class="btn btn-pri btn-sm" onclick="alert('In the full tool, this opens the site in Google Maps or exports a detailed site report PDF.')">View on Map ↗</button>
+</div>`;
+document.getElementById("modalOverlay").classList.add("open");
+}
+
+function renderRadar(scores){
+const cx=120,cy=95,r=70,n=4;
+const angles=scores.map((_,i)=>-Math.PI/2+(2*Math.PI*i/n));
+const pts=scores.map((s,i)=>{const a=angles[i];return[cx+r*s*Math.cos(a),cy+r*s*Math.sin(a)]});
+const bgPts=angles.map(a=>[cx+r*Math.cos(a),cy+r*Math.sin(a)]);
+let svg='';
+[0.25,0.5,0.75,1].forEach(f=>{
+const ring=angles.map(a=>`${cx+r*f*Math.cos(a)},${cy+r*f*Math.sin(a)}`).join(' ');
+svg+=`<polygon points="${ring}" fill="none" stroke="#E2E8F0" stroke-width="0.5"/>`;
+});
+angles.forEach(a=>{svg+=`<line x1="${cx}" y1="${cy}" x2="${cx+r*Math.cos(a)}" y2="${cy+r*Math.sin(a)}" stroke="#E2E8F0" stroke-width="0.5"/>`});
+const polyPts=pts.map(p=>p.join(",")).join(" ");
+svg+=`<polygon points="${polyPts}" fill="rgba(59,130,246,0.15)" stroke="#3B82F6" stroke-width="2"/>`;
+pts.forEach((p,i)=>{svg+=`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${dimColors[i]}" stroke="#fff" stroke-width="1.5"/>`;});
+const lblOff=[[0,-14],[16,0],[0,16],[-16,0]];
+dimNames.forEach((name,i)=>{
+const a=angles[i];const lx=cx+(r+20)*Math.cos(a)+lblOff[i][0];const ly=cy+(r+20)*Math.sin(a)+lblOff[i][1];
+svg+=`<text x="${lx}" y="${ly}" text-anchor="middle" font-size="10" font-weight="600" fill="${dimColors[i]}">${name}</text>`;
+svg+=`<text x="${lx}" y="${ly+12}" text-anchor="middle" font-size="9" fill="#94A3B8">${scores[i].toFixed(2)}</text>`;
+});
+return svg;
+}
+
+function closeSiteModal(e){if(!e||e.target===document.getElementById("modalOverlay"))document.getElementById("modalOverlay").classList.remove("open")}
+
+function renderResults(){
+const wrap=document.getElementById("resultsWrap");
+wrap.innerHTML=`
+<div class="note-box">⚠️ <span><strong>Demo Mode:</strong> All sites, scores, and statistics shown below are <strong>simulated</strong> for demonstration purposes. The full tool computes these from real GIS data and the configured MCDA criteria. Click any site row to see a detailed breakdown.</span></div>
+<div class="stats-grid">
+<div class="stat-card anim-in"><div class="stat-val" style="color:var(--pri)">247</div><div class="stat-label">Candidate Sites Identified</div><div class="stat-change" style="color:var(--grn)">↑ from 1,842 parcels screened</div></div>
+<div class="stat-card anim-in" style="animation-delay:0.1s"><div class="stat-val" style="color:var(--grn)">103</div><div class="stat-label">Tier 1 — High Priority</div><div class="stat-change" style="color:var(--txt3)">Composite score ≥ 0.80</div></div>
+<div class="stat-card anim-in" style="animation-delay:0.2s"><div class="stat-val" style="color:var(--amb)">34</div><div class="stat-label">Micro-Catchments Analyzed</div><div class="stat-change" style="color:var(--red)">12 under-served</div></div>
+<div class="stat-card anim-in" style="animation-delay:0.3s"><div class="stat-val" style="color:var(--vio)">2.8M</div><div class="stat-label">Est. Gallons Capturable</div><div class="stat-change" style="color:var(--grn)">31% of 1-yr storm volume</div></div>
+</div>
+<div class="results-grid">
+<div class="res-card"><div class="res-card-header">📍 Candidate Site Map</div><div id="resultsMap"></div>
+<div style="padding:8px 16px"><div class="legend">
+<div class="legend-item"><div class="legend-dot" style="background:#10B981"></div>Tier 1 (High)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div>Tier 2 (Moderate)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#EF4444"></div>Tier 3 (Lower)</div>
+</div></div></div>
+<div class="res-card"><div class="res-card-header">📊 Analysis Summary</div><div class="res-card-body">
+<div style="font-size:12px;font-weight:600;color:var(--txt);margin-bottom:8px">Site Tier Distribution</div>
+<div class="tier-bar"><div class="tier-label" style="color:#10B981">Tier 1</div><div class="tier-track"><div class="tier-fill" style="width:42%;background:#10B981">42%</div></div><div class="tier-count">103</div></div>
+<div class="tier-bar"><div class="tier-label" style="color:#F59E0B">Tier 2</div><div class="tier-track"><div class="tier-fill" style="width:35%;background:#F59E0B">35%</div></div><div class="tier-count">87</div></div>
+<div class="tier-bar"><div class="tier-label" style="color:#EF4444">Tier 3</div><div class="tier-track"><div class="tier-fill" style="width:23%;background:#EF4444">23%</div></div><div class="tier-count">57</div></div>
+<div style="margin-top:16px;font-size:12px;font-weight:600;color:var(--txt);margin-bottom:8px">Recommended GSI Practice Mix</div>
+${renderGSIDist()}
+<div style="margin-top:16px;font-size:12px;font-weight:600;color:var(--txt);margin-bottom:8px">Average Dimension Scores (All Tier 1)</div>
+${renderDimBars()}
+</div></div>
+</div>
+<div class="res-card" style="margin-bottom:20px">
+<div class="res-card-header" style="display:flex;justify-content:space-between;align-items:center">
+<span>🏆 Top Ranked Candidate Sites (click row for details)</span>
+<button class="btn btn-sec btn-sm" onclick="alert('In the full tool, this exports all 247 sites as a Shapefile/GeoPackage with all attribute scores, dimension breakdowns, and recommended GSI practice.')">Export All ↓</button>
+</div>
+<div style="overflow-x:auto"><table class="site-table"><thead><tr><th>Rank</th><th>Site Name</th><th>Type</th><th>Area</th><th>Composite Score</th><th>Tier</th><th>Recommended GSI</th></tr></thead>
+<tbody>${fakeSites.map((s,i)=>`<tr onclick="openSiteModal(${i})">
+<td style="font-weight:700;color:var(--txt3)">#${i+1}</td>
+<td style="font-weight:600">${s.name}</td><td>${s.type}</td><td>${s.area} ft²</td>
+<td><div class="score-bar"><div class="score-fill" style="width:${s.score*100}%;background:${tierColors[s.tier]}"></div></div>${s.score.toFixed(2)}</td>
+<td><span class="badge badge-t${s.tier}">${s.tier===1?"High":s.tier===2?"Moderate":"Lower"}</span></td>
+<td><span class="gsi-tag" style="background:${s.tier===1?"#DCFCE7":s.tier===2?"#FEF9C3":"#FEE2E2"}">${s.gsi}</span></td>
+</tr>`).join("")}</tbody></table></div></div>
+<div class="results-grid">
+<div class="res-card"><div class="res-card-header">🔬 Sensitivity Analysis</div><div class="res-card-body" style="font-size:12px;color:var(--txt2);line-height:1.6">
+<p><strong>Weight Perturbation (±20%):</strong> Top 5 sites remain stable across all tested weight combinations. Rankings 6–15 show moderate sensitivity to the Hydrological Effectiveness dimension weight.</p>
+<p style="margin-top:8px"><strong>Monte Carlo (n=1,000):</strong> Site #1 (Ala Moana Park East) ranks in the top 3 in 94% of simulations. Site #4 (Iwilei Industrial) shows highest variance — drops to rank 8–12 when equity weight falls below 15%.</p>
+<p style="margin-top:8px"><strong>Most Influential Criterion:</strong> Contributing Drainage Area — removing this criterion causes the most significant re-ranking, affecting 38% of Tier 1 assignments.</p>
+<p style="margin-top:8px"><strong>Scenario Comparison:</strong> Switching from "Balanced" to "Equity Priority" moves 23 additional sites into Tier 1, concentrated in Chinatown and Kalihi neighborhoods. Switching to "Flood Priority" reduces Tier 1 count by 8 but increases estimated capture volume by 14%.</p>
+</div></div>
+<div class="res-card"><div class="res-card-header">💡 Key Findings & Recommendations</div><div class="res-card-body" style="font-size:12px;color:var(--txt2);line-height:1.6">
+<p>• <strong>Kaka'ako district</strong> has the highest concentration of Tier 1 sites (18 sites) — abundant vacant city-owned parcels with favorable soils and high impervious CDAs.</p>
+<p style="margin-top:6px">• <strong>12 under-served catchments</strong> have candidate GSI capacity covering less than 40% of the 1-year design storm volume. Regional facilities or green roof incentives recommended.</p>
+<p style="margin-top:6px">• <strong>Treatment train opportunity:</strong> A cluster of 7 sites along King Street corridor could form a connected bioswale network capturing an estimated 340,000 gallons per storm event.</p>
+<p style="margin-top:6px">• <strong>Equity gap:</strong> Kalihi and Iwilei neighborhoods score highest on EJ indices but have fewer Tier 1 sites due to HSG-D soils. Detention-based GSI with surface amenities is recommended.</p>
+<p style="margin-top:6px">• <strong>Quick wins:</strong> 14 school and church sites require minimal acquisition and could be implemented within 12 months through partnership agreements.</p>
+</div></div>
+</div>
+<div style="text-align:center;padding:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+<button class="btn btn-sec" onclick="goStep(2)">← Adjust Criteria</button>
+<button class="btn btn-pri" onclick="alert('In the full tool, this generates a comprehensive PDF report including all maps, site ranking tables, sensitivity analysis charts, GSI practice recommendations, and investment scenarios.')">📄 Generate Full Report</button>
+<button class="btn btn-grn" onclick="alert('In the full tool, this exports the scenario comparison dashboard showing how results change across different weight configurations.')">📊 Export Scenario Comparison</button>
+</div>`;
+setTimeout(initResultsMap,200);
+}
+
+function renderGSIDist(){
+const g=[{name:"Rain Garden",pct:32,color:"#10B981"},{name:"Bioretention",pct:24,color:"#06B6D4"},{name:"Permeable Pvmt",pct:18,color:"#8B5CF6"},{name:"Bioswale",pct:14,color:"#F59E0B"},{name:"Detention+Park",pct:8,color:"#EF4444"},{name:"Wetland",pct:4,color:"#6366F1"}];
+return g.map(x=>`<div class="chart-bar-h"><div class="chart-bar-label">${x.name}</div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${x.pct}%;background:${x.color}"></div></div><div class="chart-bar-val">${x.pct}%</div></div>`).join("");
+}
+
+function renderDimBars(){
+const d=[{name:"Hydrological",avg:0.82,color:"#06B6D4"},{name:"Feasibility",avg:0.86,color:"#8B5CF6"},{name:"Co-Benefits",avg:0.79,color:"#10B981"},{name:"Equity",avg:0.84,color:"#F59E0B"}];
+return d.map(x=>`<div class="chart-bar-h"><div class="chart-bar-label">${x.name}</div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${x.avg*100}%;background:${x.color}"></div></div><div class="chart-bar-val">${x.avg.toFixed(2)}</div></div>`).join("");
+}
+
+function initResultsMap(){
+if(map2){map2.remove();map2=null}
+map2=L.map("resultsMap",{zoomControl:false}).setView([21.305,-157.842],13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:'© OSM',maxZoom:18}).addTo(map2);
+L.polygon(honBoundary,{color:"#3B82F6",weight:2,fillColor:"#3B82F6",fillOpacity:0.04,dashArray:"6 3"}).addTo(map2);
+fakeSites.forEach(s=>{
+const c=L.circleMarker([s.lat,s.lng],{radius:s.tier===1?10:s.tier===2?8:6,fillColor:tierColors[s.tier],color:"#fff",weight:2,fillOpacity:0.9}).addTo(map2);
+c.bindPopup(`<div style="font-size:12px;min-width:160px"><strong>${s.name}</strong><br><span style="color:${tierColors[s.tier]};font-weight:700">Score: ${s.score.toFixed(2)}</span> · ${s.tier===1?"Tier 1":s.tier===2?"Tier 2":"Tier 3"}<br>Type: ${s.type}<br>GSI: ${s.gsi} · ${s.area} ft²</div>`);
+});
+for(let i=0;i<80;i++){
+const lat=21.262+Math.random()*0.08,lng=-157.885+Math.random()*0.075;
+const tier=Math.random()<0.35?1:Math.random()<0.65?2:3;
+L.circleMarker([lat,lng],{radius:tier===1?6:tier===2?5:4,fillColor:tierColors[tier],color:"#fff",weight:1.5,fillOpacity:0.5}).addTo(map2);
+}
+setTimeout(()=>map2.invalidateSize(),100);
+}
+
+renderNav();renderHeader();
+document.getElementById("panel1").classList.add("active");
+setTimeout(()=>{initMap();renderDataOverlay()},300);
+</script>
+</body>
+</html>
